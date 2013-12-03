@@ -265,6 +265,7 @@ public class CM_1 extends SimpleBatchFilter{
 	public void computeCM1(Instances fold) throws IOException{
 		 
 		 int numAttributes = fold.numAttributes();
+
 		 
 		 int num_instances = fold.numInstances();
 		 
@@ -303,10 +304,10 @@ public class CM_1 extends SimpleBatchFilter{
 				 
 			 	}
 			 
-			 double numerator = ((1.0/num_specificClass)*sum_specificClass) - (sum_otherClasses*(1.0/num_otherClasses));
-			 double div = 1+(max-min);
+			 double over = ((1.0/num_specificClass)*sum_specificClass) - (sum_otherClasses*(1.0/num_otherClasses));
+			 double under = 1+(max-min);
 
-			 double CM_1Score = numerator/div;
+			 double CM_1Score = over/under;
 			 
 			 if(GraphScores.get(fold.attribute(attribute).name())==null)	
 				 GraphScores.put(fold.attribute(attribute).name(),  new ArrayList<Double>());
@@ -314,6 +315,7 @@ public class CM_1 extends SimpleBatchFilter{
 			 GraphScores.get(fold.attribute(attribute).name()).add(CM_1Score); // put CM_1 score for each column of attribute
 
 	 		} //all attributes computed
+
 		 }
 	 
 	public void compute_Ranking(){
@@ -361,7 +363,6 @@ public class CM_1 extends SimpleBatchFilter{
 		 String jsonleastattributes = "[{\"key\": \"bottomattributes\", \"color\": \"#2ca02c\",  \"values\": [";
 		 String jsonmiddleattributes = "{\"key\": \"middleattributes\", \"color\": \"#1f77b4\",  \"values\": [";
 		 
-		 //instead of plotting summed up value, now showing the ranks. Means length of map - index
 		 
 		  for (Map.Entry pairs : sortedbyRanking.entrySet()) {
 		        if(index < m_bottomrange)
@@ -376,7 +377,7 @@ public class CM_1 extends SimpleBatchFilter{
 		        }
 		        
 		        
-		        if(index > m_bottomrange && index < sortedbyRanking.size() - m_toprange -1 && index % 2 == 0 )
+		        if(index > m_bottomrange && index < sortedbyRanking.size() - m_toprange -1 && index % 10 == 0 )
 		        {
 		        	jsonmiddleattributes = jsonmiddleattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";
 		        }
