@@ -32,8 +32,7 @@ public class CM_1 extends SimpleBatchFilter{
 	
 	private static final long serialVersionUID = 1L;
 	protected int m_folds;
-	private int m_toprange;
-	private int m_bottomrange;
+	private int m_range;
 	public String m_targetclass = "first occuring";
 	private Map<String, Double> RankingSums;
 	private Map<String, Double> rangedRankings;
@@ -43,8 +42,7 @@ public class CM_1 extends SimpleBatchFilter{
 	
 	public CM_1(){
 		m_folds = 10;
-		m_toprange = 5;
-		m_bottomrange = 5;
+		m_range = 10;
 		
 		RankingSums = new HashMap<String, Double>();
 		rangedRankings = new HashMap<String, Double>();
@@ -73,11 +71,8 @@ public class CM_1 extends SimpleBatchFilter{
 	    result.addElement(new Option("\tThe number of folds (default: 10).\n",
 	        "-f", 1, "-f <int>"));
 	    
-	    result.addElement(new Option("\tThe number of elements taken from the top for ranking (default: 5).\n",
-		        "-T", 1, "-T <int>"));
-	    
-	    result.addElement(new Option("\tThe number of elements taken from the bottom for ranking (default: 5).\n",
-		        "-B", 1, "-B <int>"));
+	    result.addElement(new Option("\tThe number of elements taken for ranking (default: 5).\n",
+		        "-R", 1, "-R <int>"));
 	    
 	    result.addElement(new Option("\tThe target Class (default: 1).\n",
 		        "-C", 1, "-C <int>"));
@@ -95,18 +90,11 @@ public class CM_1 extends SimpleBatchFilter{
 				setNumberofFolds(10);
 			} 
 		    
-	    String topRangeString = Utils.getOption('T', options);
-	    if (topRangeString.length() != 0) {
-	      setTopRange((Integer.parseInt(topRangeString)));
+	    String rangeString = Utils.getOption('R', options);
+	    if (rangeString.length() != 0) {
+	      setRange((Integer.parseInt(rangeString)));
 	    } else {
-	    	setTopRange(5);
-	    }
-	    
-	    String bottomRangeString = Utils.getOption('B', options);
-	    if (bottomRangeString.length() != 0) {
-	      setBottomRange((Integer.parseInt(bottomRangeString)));
-	    } else {
-	    	setBottomRange(5);
+	    	setRange(5);
 	    }
 	    
 	    String targetClassString = Utils.getOption('C', options);
@@ -140,9 +128,7 @@ public class CM_1 extends SimpleBatchFilter{
 	    result.add("-k");
 	    result.add("" + getNumberofFolds());
 	    result.add("-T");
-	    result.add("" + getTopRange());
-	    result.add("-B");
-	    result.add("" + getBottomRange());
+	    result.add("" + getRange());
 	    result.add("-C");
 	    result.add("" + getTargetClass());
 	    result.add("-G");
@@ -177,30 +163,17 @@ public class CM_1 extends SimpleBatchFilter{
 		return "The Number of Folds which are used for Cross-Validation";
 	}
 	
-	public int getTopRange() {
-		return m_toprange;
+	public int getRange() {
+		return m_range;
 	}
 	
-	public void setTopRange(int toprange) {
-		m_toprange = toprange;
+	public void setRange(int range) {
+		m_range = range;
 		
 	}
 	
-	public String TopRangeTipText(){
-		return "The Number of topattributes taken for Ranking";
-	}
-	
-	public int getBottomRange() {
-		return m_bottomrange;
-	}
-	
-	public void setBottomRange(int bottomrange) {
-		m_bottomrange = bottomrange;
-		
-	}
-	
-	public String BottomRangeTipText(){
-		return "The Number of bottomattributes taken for Ranking";
+	public String RangeTipText(){
+		return "The Number of attributes taken for Ranking";
 	}
 
 	public String getTargetClass(){
@@ -259,15 +232,15 @@ public class CM_1 extends SimpleBatchFilter{
 			 
 			 computeCM1(modifiedData);
 		 }
-		 compute_Ranking();
+		 //compute_RankingwithAverages();
 	 }
 	 
 	public void computeCM1(Instances fold) throws IOException{
 		 
 		 int numAttributes = fold.numAttributes();
-
-		 
 		 int num_instances = fold.numInstances();
+		 
+		 Map<String, Double> CM_1Scores = new HashMap<String, Double>();    //create a HashMap to store the CM_1 Score for each fold
 		 
 		 for(int attribute = 0; attribute < numAttributes-1; attribute++){		//get sum for each attribute column
 			 double sum_specificClass = 0.0;											
@@ -309,33 +282,48 @@ public class CM_1 extends SimpleBatchFilter{
 
 			 double CM_1Score = over/under;
 			 
-			 if(GraphScores.get(fold.attribute(attribute).name())==null)	
+			 if(GraphScores.get(fold.attribute(attribute).name())==null){	
 				 GraphScores.put(fold.attribute(attribute).name(),  new ArrayList<Double>());
+			 }
 			 
 			 GraphScores.get(fold.attribute(attribute).name()).add(CM_1Score); // put CM_1 score for each column of attribute
+			 
+			 CM_1Scores.put(fold.attribute(attribute).name(), Math.abs(CM_1Score)); // put absolute CM1 Score
+
 
 	 		} //all attributes computed
-
+		 compute_Ranking(CM_1Scores);	//compute Ranking with absolute values if computation if average CM1 Scores needed run compute_RankingwithAverages after all createFolds()
 		 }
 	 
-	public void compute_Ranking(){
+	public void compute_Ranking(Map<String, Double> abs_CM_1Scores){	
+		Map<String, Double> sorted = sortByValues(abs_CM_1Scores);
+		List<String> sortedAsArray = new ArrayList<String>(sorted.keySet());		//convert Keys to array
+		 
+		System.out.println("Sorted: " + sorted);
+		 for(int i = sortedAsArray.size(); i > 0; i--){
+			 if(!RankingSums.containsKey(sortedAsArray.get(i-1))){
+				 RankingSums.put(sortedAsArray.get(i-1), 1.0 * sortedAsArray.size() - i + 1);
+			 }
+			 else{
+				 RankingSums.put(sortedAsArray.get(i-1), RankingSums.get(sortedAsArray.get(i-1)) + (1.0 * sortedAsArray.size() - i + 1)) ;	//update attributes ranking sum; ranking[attribute] = previous sum + index
+			 }
+			 System.out.println("ranking then: " + sortedAsArray.get(i-1) +" " + String.valueOf(RankingSums.get(sortedAsArray.get(i-1))));
+		 }
+	 }
+	
+	public void compute_RankingwithAverages(){
 		Map<String, Double> Scores = new HashMap<String, Double>();
+		
 		for (Map.Entry pairs : GraphScores.entrySet()) {
 			Scores.put(pairs.getKey().toString(), calculateAverage(GraphScores.get(pairs.getKey())));
 		}
-		
 		Map<String, Double> sorted = sortByValues(Scores);
-		 List<String> sortedAsArray = new ArrayList<String>(sorted.keySet());		//convert Keys to array, CM_1 scores no longer needed
-		 
-		 for(int i = 0; i< sortedAsArray.size(); i++){
-			 if(!RankingSums.containsKey(sortedAsArray.get(i))){
-				 RankingSums.put(sortedAsArray.get(i), ((double)i+1));
-			 }
-			 else{
-				 RankingSums.put(sortedAsArray.get(i), RankingSums.get(sortedAsArray.get(i)) + ((double)i+1)) ;	//update attributes ranking sum; ranking[attribute] = previous sum + index
-			 }
-		 }
-	 }
+		List<String> sortedAsArray = new ArrayList<String>(sorted.keySet());		//convert Keys to array
+		
+		for(int i = 0; i< sortedAsArray.size(); i++){
+				 RankingSums.put(sortedAsArray.get(i), sorted.get(sortedAsArray.get(i)));
+		}
+	}
 	 
 	public Instances adjustInstances( Instances input) throws Exception{
 		 String IndicesToBeRemoved = "";
@@ -357,6 +345,7 @@ public class CM_1 extends SimpleBatchFilter{
 	}
 		 
 	public void applyRangesandComputeJSON (Map<String, Double> sortedbyRanking) throws IOException{
+		
 		 sortedbyRanking = sortByValues(sortedbyRanking);
 		 int index = 1;
 		 String jsontopattributes = "{\"key\": \"topattributes\", \"color\": \"#d62728\"  , \"values\": [";
@@ -364,42 +353,26 @@ public class CM_1 extends SimpleBatchFilter{
 		 String jsonmiddleattributes = "{\"key\": \"middleattributes\", \"color\": \"#1f77b4\",  \"values\": [";
 		 
 		 
-		  for (Map.Entry pairs : sortedbyRanking.entrySet()) {
-		        if(index < m_bottomrange)
-		        {
-		        	jsonleastattributes = jsonleastattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
-					rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
-		        }
-		        if(index == m_bottomrange)
-		        {
-		        	jsonleastattributes = jsonleastattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "}]},";
-					rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
-		        }
-		        
-		        
-		        if(index > m_bottomrange && index < sortedbyRanking.size() - m_toprange -1 && index % 10 == 0 )
-		        {
-		        	jsonmiddleattributes = jsonmiddleattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";
-		        }
-		        if(index ==sortedbyRanking.size() - m_toprange-1)
-		        {
-		        	jsonmiddleattributes = jsonmiddleattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "}]},";
-		        }
-		        
-		        
-		        if (index > sortedbyRanking.size() - m_toprange)
-		        {
-		        	jsontopattributes = jsontopattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";
-					rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
-		        }
-		        if(index == sortedbyRanking.size())
-		        {
-		        	jsontopattributes = jsontopattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "}]}]";
-					rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
-		        }
-		        index++;
-		        
-		  }
+		 for(Map.Entry pairs : sortedbyRanking.entrySet()){
+			 if(index <= m_range && calculateAverage(GraphScores.get(pairs.getKey())) < 0 ){
+				 jsonleastattributes = jsonleastattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
+				 rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
+				 System.out.println("Rank: " + pairs.getValue().toString());
+			 }
+			 else if(index <= m_range && calculateAverage(GraphScores.get(pairs.getKey())) > 0 ){
+				 jsontopattributes = jsontopattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
+				 rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
+				 System.out.println("Rank: " + pairs.getValue().toString());
+			 }
+			 else{
+				 jsonmiddleattributes = jsonmiddleattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
+			 }
+			 index++;
+		 }
+		 
+		 jsontopattributes = jsontopattributes.substring(0, jsontopattributes.length() - 2) + "]}]"; //remove additional comma at end
+		 jsonleastattributes = jsonleastattributes.substring(0, jsonleastattributes.length() - 2) + "]},"; //remove additional comma at end
+		 jsonmiddleattributes = jsonmiddleattributes.substring(0, jsonmiddleattributes.length() - 2) + "]},"; //remove additional comma at end
 		  
 		  //use Json to compute Graph if user set the option
 		  if(isGraphComputed()){
@@ -441,7 +414,7 @@ public class CM_1 extends SimpleBatchFilter{
 	
 	            @Override
 	            public int compare(Entry<K, V> o1, Entry<K, V> o2) {
-	                return o2.getValue().compareTo(o1.getValue());
+	                return o1.getValue().compareTo(o2.getValue());
 	            }
 	        });
 	      
