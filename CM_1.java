@@ -299,7 +299,6 @@ public class CM_1 extends SimpleBatchFilter{
 		Map<String, Double> sorted = sortByValues(abs_CM_1Scores);
 		List<String> sortedAsArray = new ArrayList<String>(sorted.keySet());		//convert Keys to array
 		 
-		System.out.println("Sorted: " + sorted);
 		 for(int i = sortedAsArray.size(); i > 0; i--){
 			 if(!RankingSums.containsKey(sortedAsArray.get(i-1))){
 				 RankingSums.put(sortedAsArray.get(i-1), 1.0 * sortedAsArray.size() - i + 1);
@@ -307,7 +306,6 @@ public class CM_1 extends SimpleBatchFilter{
 			 else{
 				 RankingSums.put(sortedAsArray.get(i-1), RankingSums.get(sortedAsArray.get(i-1)) + (1.0 * sortedAsArray.size() - i + 1)) ;	//update attributes ranking sum; ranking[attribute] = previous sum + index
 			 }
-			 System.out.println("ranking then: " + sortedAsArray.get(i-1) +" " + String.valueOf(RankingSums.get(sortedAsArray.get(i-1))));
 		 }
 	 }
 	
@@ -354,25 +352,34 @@ public class CM_1 extends SimpleBatchFilter{
 		 
 		 
 		 for(Map.Entry pairs : sortedbyRanking.entrySet()){
-			 if(index <= m_range && calculateAverage(GraphScores.get(pairs.getKey())) < 0 ){
+			 if(index <= m_range && calculateAverage(GraphScores.get(pairs.getKey())) <= 0.0 ){
 				 jsonleastattributes = jsonleastattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
 				 rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
-				 System.out.println("Rank: " + pairs.getValue().toString());
 			 }
-			 else if(index <= m_range && calculateAverage(GraphScores.get(pairs.getKey())) > 0 ){
+			 else if(index <= m_range && calculateAverage(GraphScores.get(pairs.getKey())) > 0.0 ){
 				 jsontopattributes = jsontopattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
 				 rangedRankings.put(pairs.getKey().toString(), (Double) pairs.getValue());
-				 System.out.println("Rank: " + pairs.getValue().toString());
 			 }
-			 else{
-				 jsonmiddleattributes = jsonmiddleattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
-			 }
+			 else if((sortedbyRanking.size() - m_range > 1000 && index % 10 ==0 ) || (index > m_range) && sortedbyRanking.size() - m_range < 1000){
+				 	jsonmiddleattributes = jsonmiddleattributes + "{ \"label\" : " + "\"" + pairs.getKey().toString() + "\"" + ", \"value\": " +  String.valueOf(calculateAverage(GraphScores.get(pairs.getKey()))) + "} , ";	
+				 }
 			 index++;
 		 }
 		 
-		 jsontopattributes = jsontopattributes.substring(0, jsontopattributes.length() - 2) + "]}]"; //remove additional comma at end
-		 jsonleastattributes = jsonleastattributes.substring(0, jsonleastattributes.length() - 2) + "]},"; //remove additional comma at end
+		 if(jsontopattributes.length() > 68)
+			 jsontopattributes = jsontopattributes.substring(0, jsontopattributes.length() - 2) + "]}]"; //remove additional comma at end
+		 else
+			 jsontopattributes = jsontopattributes + "]}]";
+			 
+		 if(jsonleastattributes.length() > 68)
+			 jsonleastattributes = jsonleastattributes.substring(0, jsonleastattributes.length() - 2) + "]},"; //remove additional comma at end
+		 else
+			 jsonleastattributes = jsonleastattributes + "]},";
+		 
+		 if(jsonmiddleattributes.length() > 68)
 		 jsonmiddleattributes = jsonmiddleattributes.substring(0, jsonmiddleattributes.length() - 2) + "]},"; //remove additional comma at end
+		 else
+			 jsonmiddleattributes = jsonmiddleattributes + "]},";
 		  
 		  //use Json to compute Graph if user set the option
 		  if(isGraphComputed()){

@@ -30,6 +30,7 @@ svg {
 }
 
 </style>
+<label><input type="checkbox" id = "sort"> Sort values</label>
 <body>
 
   <div id="chart1" class='with-3d-shadow with-transitions'>
@@ -59,11 +60,22 @@ nv.addGraph(function() {
       .margin({top: 30, right: 20, bottom: 50, left: 150})
       //.showValues(true)
       //.tooltips(true)
-	//.rotateLabels(60)
+  //.rotateLabels(60)
       .showControls(false);
 
   chart.yAxis
       .tickFormat(d3.format(',.4f'));
+
+  var rank = 0;
+  CM_1data.forEach(function(serie,index) {              
+                serie.values.forEach(function(feat,findex){
+                  feat.rank = rank;
+                  //feat.absvalue= Math.abs(feat.value);
+                  console.log(feat);
+                  rank = rank +1;
+                });
+              }
+            )
 
   d3.select('#chart1 svg')
       .datum(CM_1data)
@@ -74,6 +86,53 @@ nv.addGraph(function() {
 
   return chart;
 });
+
+d3.select("input").on("change", change);
+
+ /* var sortTimeout = setTimeout(function() {
+    d3.select("input").property("checked", true).each(change);
+  }, 2000);
+*/
+
+  function change() {
+    //clearTimeout(sortTimeout);
+
+    // Copy-on-write since tweens are evaluated after a delay.
+    var y0 = chart.yDomain(
+            CM_1data.forEach(function(serie,index) {
+              serie.values.sort(document.getElementById("sort").checked
+              ? function(a,b){ return d3.descending(b.value, a.value);  }
+              : function(a,b){ return d3.descending(b.rank, a.rank); }
+            );
+            }
+            ))
+  
+/*    console.log(CM_1data.sort(this.checked,function(a,b){
+  console.log("value" + b.value);
+  return d3.ascending(b.key, a.key);}));
+*/  
+    var svg = d3.selectAll("svg");
+
+    var transition = svg.transition().duration(750),
+        delay = function(d, i) { return i * 50; };
+
+    transition.selectAll(".bar")
+        .delay(delay)
+        .attr("y", function(d) { return y0(d.label); });
+
+    transition.select(".y.axis")
+        .call(chart.yAxis)
+      .selectAll("g")
+        .delay(delay);
+     
+     d3.select('#chart1 svg')
+      .datum(CM_1data)
+      .transition().duration(3000/CM_1data[1].values.length)
+      .call(chart);
+      
+     nv.utils.windowResize(chart.update);   
+  }
+
 
 
 </script>
