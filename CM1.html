@@ -30,7 +30,13 @@ svg {
 }
 
 </style>
+<form action=change()>Sort by:
+<input type="radio" name="sort" value="rank" onchange=change()>Rank
+<input type="radio" name="sort" value="value" onchange=change()>Value
+</form>
+<!--
 <label><input type="checkbox" id = "sort"> Sort values</label>
+-->
 <body>
 
   <div id="chart1" class='with-3d-shadow with-transitions'>
@@ -45,15 +51,45 @@ svg {
 <script src="nvd3/src/models/axis.js"></script>
 <script src="nvd3/src/models/multiBarHorizontal.js"></script>
 <script src="nvd3/src/models//multiBarHorizontalChart.js"></script>
-<script src="./CM1.json"></script>
+<script src="CM1.json"></script>
 
 <script>
 
 
+function rankData()
+  {
+    var result = [{key: "selected", values: CM_1data[0].values.concat(CM_1data[2].values), color: "#A1D76A"},
+    					 {key: "remaining", values: CM_1data[1].values, color: "#FC8D59"}];
+
+    result.forEach(function(serie,index) {
+    					serie.values.sort(function(a,b){ return b.absvalue - a.absvalue; });
+    				})
+    return result;
+  };
 
 
 var chart;
+var rankedData;
+
 nv.addGraph(function() {
+
+	var rank = 0;
+	CM_1data.forEach(function(serie,index) {
+							//serie.values.sort(function(a,b){d3.descending(a.value,b.value);});							
+    						serie.values.forEach(function(feat,findex){
+    							feat.rank = rank;
+    							feat.absvalue= Math.abs(feat.value);
+    							console.log(feat);
+    							rank = rank +1;
+    						});
+    						serie.values.sort(function(a,b){return b.value - a.value;});    						
+    						//console.log(serie);
+    					}
+    				);
+   console.log(CM_1data[0]);
+   console.log(CM_1data[1]);
+	console.log(CM_1data[2]); 				
+   rankedData = rankData();   				
   chart = nv.models.multiBarHorizontalChart()
       .x(function(d) { return d.label })
       .y(function(d) { return d.value })
@@ -65,18 +101,6 @@ nv.addGraph(function() {
 
   chart.yAxis
       .tickFormat(d3.format(',.4f'));
-
-  var rank = 0;
-  CM_1data.forEach(function(serie,index) {              
-                serie.values.forEach(function(feat,findex){
-                  feat.rank = rank;
-                  //feat.absvalue= Math.abs(feat.value);
-                  console.log(feat);
-                  rank = rank +1;
-                });
-              }
-            )
-
   d3.select('#chart1 svg')
       .datum(CM_1data)
       .transition().duration(1)
@@ -97,20 +121,23 @@ d3.select("input").on("change", change);
   function change() {
     //clearTimeout(sortTimeout);
 
+    var sortBy = document.querySelector('input[name="sort"]:checked').value
     // Copy-on-write since tweens are evaluated after a delay.
     var y0 = chart.yDomain(
             CM_1data.forEach(function(serie,index) {
-              serie.values.sort(document.getElementById("sort").checked
+    					serie.values.sort(sortBy=="value"
               ? function(a,b){ return d3.descending(b.value, a.value);  }
-              : function(a,b){ return d3.descending(b.rank, a.rank); }
+    					: function(a,b){ return b.absvalue - a.absvalue; }
             );
             }
             ))
   
-/*    console.log(CM_1data.sort(this.checked,function(a,b){
-  console.log("value" + b.value);
-  return d3.ascending(b.key, a.key);}));
-*/  
+    //var y0;				
+    switch(sortBy){
+    	case "value": chart.y(function(d) { return d.value }); break;
+    	case "rank": chart.y(function(d) { return d.absvalue }); break;
+    }
+	
     var svg = d3.selectAll("svg");
 
     var transition = svg.transition().duration(750),
@@ -126,7 +153,7 @@ d3.select("input").on("change", change);
         .delay(delay);
      
      d3.select('#chart1 svg')
-      .datum(CM_1data)
+      .datum(sortBy=="value"?CM_1data:rankedData)
       .transition().duration(3000/CM_1data[1].values.length)
       .call(chart);
       
